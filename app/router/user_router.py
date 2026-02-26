@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from uuid import UUID
-from model.session import SessionDep
+from entity.session import SessionDep
 from service.user_service import UserService
 from service.auth_service import AuthService
 from schema.user import UserCreateDTO, UserReadDTO
