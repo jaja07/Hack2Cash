@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from core.config import settings
-from model.session import SessionDep
+from entity.session import SessionDep
 from model.user_entity import User
 from schema.user import Token, UserCreateDTO, UserReadDTO
 from service.auth_service import AuthService, get_current_user

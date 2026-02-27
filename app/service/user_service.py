@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 from uuid import UUID
 
 from .auth_service import AuthService
-from model.user_entity import User
+from entity.user_entity import User
 from schema.user import UserCreateDTO, UserUpdateDTO
 
 logger = logging.getLogger(__name__)
