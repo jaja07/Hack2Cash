@@ -6,7 +6,7 @@ Toutes les routes sont protégées par JWT.
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from model.user_entity import User
+from entity.user_entity import User
 from schema.agent import AnalyzeRequest, AnalyzeResponse
 from service.auth_service import get_current_user
 

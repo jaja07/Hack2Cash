@@ -10,7 +10,7 @@ from pwdlib import PasswordHash
 from sqlmodel import Session, select
 
 from core.config import settings
-from model.session import SessionDep
+from entity.session import SessionDep
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ def get_current_user(
     Dependency FastAPI : extrait l'utilisateur courant depuis le Bearer JWT.
     À injecter dans les routes protégées.
     """
-    from model.user_entity import User  # import local pour éviter les circulaires
+    from entity.user_entity import User  # import local pour éviter les circulaires
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
