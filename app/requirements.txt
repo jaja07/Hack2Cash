@@ -8,3 +8,13 @@ pydantic-settings==2.9.1
 python-dotenv==1.1.0
 requests==2.32.3
 tavily-python==0.5.1
+openai==2.24.0
+langchain-core==1.2.16
+langchain-openai==1.1.10
+langgraph==1.0.0
+mcp==1.26.0
+fastmcp==3.0.2
+langchain-mcp-adapters==0.2.1
+weasyprint==68.1
+python-pptx==1.0.2
+pandas==3.0.1

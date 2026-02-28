@@ -1,35 +1,78 @@
+"""
+schema/agent.py
+Pydantic schemas pour le pipeline ARIA.
+"""
+
 from pydantic import BaseModel
-from typing import Any
+from typing import Any, Optional
 
 
-class AnalyzeRequest(BaseModel):
-    query: str = "Analyse complète du CRA"
-    domain: str = ""
-    cra_text: str
+class DataSourceSchema(BaseModel):
+    source_id:   str
+    source_type: str            # "file" | "database" | "api" | "web"
+    path_or_url: str
+    data_format: str = ""       # "pdf" | "csv" | "excel" | "json" | "txt" | ...
+    metadata:    dict = {}
 
     class Config:
         json_schema_extra = {
             "example": {
-                "query": "Quels sont les KPIs et tendances de ce CRA ?",
-                "domain": "conseil IT",
-                "cra_text": "Janvier 2024 — 22 jours facturés...",
+                "source_id":   "report-001",
+                "source_type": "file",
+                "path_or_url": "/uploads/report_q1.csv",
+                "data_format": "csv",
+                "metadata":    {},
             }
         }
 
 
-class AgentStatusResponse(BaseModel):
-    supervisor: str
-    web_research: str
-    tool_builder: str
-    analysis: str
+class AnalyzeRequest(BaseModel):
+    data_sources:   list[DataSourceSchema]
+    output_formats: list[str] = ["json", "markdown"]
+    thread_id:      str = "aria-default"
+
+    # Rétrocompatibilité — si cra_text est fourni on le traite comme fichier texte
+    cra_text:  Optional[str] = None
+    query:     Optional[str] = None
+    domain:    Optional[str] = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "data_sources": [
+                    {
+                        "source_id":   "report-001",
+                        "source_type": "file",
+                        "path_or_url": "/uploads/report_q1.csv",
+                        "data_format": "csv",
+                        "metadata":    {},
+                    }
+                ],
+                "output_formats": ["json", "markdown"],
+                "thread_id": "session-abc123",
+            }
+        }
 
 
 class AnalyzeResponse(BaseModel):
-    status: str
-    iterations: int
-    agent_statuses: AgentStatusResponse
-    rag_chunks_count: int
-    tools_count: int
-    result: dict[str, Any] | None
-    error: str | None
-    supervisor_notes: list[str]
+    status:           str
+    domain:           Optional[str]
+    reporting_period: Optional[str]
+    kpis:             list[str]
+    confidence_score: float
+    confidence_pct:   str
+    degraded_report:  bool
+    iterations:       int
+    key_findings:     list[str]
+    recommendations:  list[dict]
+    triz_analysis:    Optional[dict]
+    artifacts:        dict[str, Any]
+    errors:           list[str]
+    node_history:     list[dict]
+
+
+class AgentStatusResponse(BaseModel):
+    status:     str = "ok"
+    agents:     list[str]
+    configured: dict[str, bool]
+    user:       str

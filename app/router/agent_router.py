@@ -1,13 +1,17 @@
 """
 router/agent_router.py
-Routes FastAPI pour déclencher le pipeline multi-agents.
+Routes FastAPI pour déclencher le pipeline ARIA.
 Toutes les routes sont protégées par JWT.
 """
+
+import os
+import tempfile
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from entity.user_entity import User
-from schema.agent import AnalyzeRequest, AnalyzeResponse
+from schema.agent import AnalyzeRequest, AnalyzeResponse, AgentStatusResponse
 from service.auth_service import get_current_user
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
@@ -18,47 +22,154 @@ CurrentUserDep = Annotated[User, Depends(get_current_user)]
 @router.post(
     "/analyze",
     response_model=AnalyzeResponse,
-    summary="Lancer le pipeline multi-agents sur un CRA",
+    summary="Lancer le pipeline ARIA sur des sources de données",
 )
-def analyze_cra(
+def analyze(
     request: AnalyzeRequest,
     current_user: CurrentUserDep,
 ):
     """
-    Lance le pipeline complet :
-    web_research → tool_builder → analysis
-
-    Requiert un Bearer JWT valide.
+    Lance le pipeline complet ARIA :
+    domain_identifier → data_extractor → data_operator →
+    rag_retriever → data_consolidator → triz_analyzer → report_generator
     """
-    try:
-        from agents.supervisor_agent import SupervisorAgent
+    from agent import run_aria
 
-        supervisor = SupervisorAgent()
-        state = supervisor.run(
-            cra_text=request.cra_text,
-            query=request.query,
-            domain=request.domain,
+    # Rétrocompatibilité cra_text → source texte temporaire
+    sources = [s.model_dump() for s in request.data_sources]
+    if request.cra_text and not sources:
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, encoding="utf-8"
         )
-        return supervisor.to_api_response(state)
+        tmp.write(request.cra_text)
+        tmp.close()
+        sources = [{
+            "source_id":   "cra-text",
+            "source_type": "file",
+            "path_or_url": tmp.name,
+            "data_format": "txt",
+            "metadata":    {},
+        }]
 
+    if not sources:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide at least one data source or cra_text.",
+        )
+
+    try:
+        result = run_aria(
+            data_sources=sources,
+            output_formats=request.output_formats,
+            thread_id=request.thread_id or str(current_user.id),
+            stream=False,
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erreur du pipeline : {str(e)}",
+            detail=f"Pipeline error: {str(e)}",
         )
+
+    return AnalyzeResponse(
+        status=           result.get("status", "unknown"),
+        domain=           result.get("domain"),
+        reporting_period= result.get("reporting_period"),
+        kpis=             result.get("kpis", []),
+        confidence_score= result.get("confidence_score", 0.0),
+        confidence_pct=   f"{result.get('confidence_score', 0.0) * 100:.1f}%",
+        degraded_report=  result.get("degraded_report", False),
+        iterations=       result.get("iteration", 0),
+        key_findings=     result.get("key_findings", []),
+        recommendations=  result.get("recommendations", []),
+        triz_analysis=    result.get("triz_analysis"),
+        artifacts=        result.get("report_artifacts", {}),
+        errors=           result.get("errors", []),
+        node_history=     result.get("node_history", []),
+    )
+
+
+@router.post(
+    "/analyze/upload",
+    response_model=AnalyzeResponse,
+    summary="Analyser un fichier uploadé directement",
+)
+async def analyze_upload(
+    file: UploadFile = File(...),
+    current_user: CurrentUserDep = Depends(get_current_user),
+):
+    """
+    Upload un fichier et lance le pipeline ARIA directement.
+    Formats supportés : pdf, csv, xlsx, json, txt.
+    """
+    from agent import run_aria
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "txt"
+
+    tmp = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
+    tmp.write(await file.read())
+    tmp.close()
+
+    sources = [{
+        "source_id":   file.filename,
+        "source_type": "file",
+        "path_or_url": tmp.name,
+        "data_format": ext,
+        "metadata":    {},
+    }]
+
+    try:
+        result = run_aria(
+            data_sources=sources,
+            output_formats=["json", "markdown"],
+            thread_id=str(current_user.id),
+            stream=False,
+        )
+    except Exception as e:
+        os.unlink(tmp.name)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Pipeline error: {str(e)}",
+        )
+
+    os.unlink(tmp.name)
+
+    return AnalyzeResponse(
+        status=           result.get("status", "unknown"),
+        domain=           result.get("domain"),
+        reporting_period= result.get("reporting_period"),
+        kpis=             result.get("kpis", []),
+        confidence_score= result.get("confidence_score", 0.0),
+        confidence_pct=   f"{result.get('confidence_score', 0.0) * 100:.1f}%",
+        degraded_report=  result.get("degraded_report", False),
+        iterations=       result.get("iteration", 0),
+        key_findings=     result.get("key_findings", []),
+        recommendations=  result.get("recommendations", []),
+        triz_analysis=    result.get("triz_analysis"),
+        artifacts=        result.get("report_artifacts", {}),
+        errors=           result.get("errors", []),
+        node_history=     result.get("node_history", []),
+    )
 
 
 @router.get(
     "/status",
+    response_model=AgentStatusResponse,
     summary="Vérifier que les agents sont disponibles",
 )
 def agents_status(current_user: CurrentUserDep):
-    """Retourne le statut de disponibilité des agents."""
-    from core.config import settings
-
-    return {
-        "agents": ["supervisor", "web_research", "tool_builder", "analysis"],
-        "deploy_ai_configured": bool(settings.CLIENT_ID and settings.CLIENT_SECRET),
-        "tavily_configured":    bool(settings.TAVILY_API_KEY),
-        "user": current_user.email,
-    }
+    return AgentStatusResponse(
+        status="ok",
+        agents=[
+            "domain_identifier", "human_checkpoint",
+            "data_extractor", "data_operator",
+            "rag_retriever", "data_consolidator",
+            "triz_analyzer", "report_generator",
+            "error_handler",
+        ],
+        configured={
+            "nvidia_api":      bool(os.getenv("NVIDIA_API_KEY")),
+            "research_agent":  False,  # stub
+            "tool_builder":    False,  # stub
+        },
+        user=current_user.email,
+    )
