@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<activity_report period="Q1-2025" domain="Finance">
+  <department name="Sales">
+    <month id="2025-01">
+      <revenue>450000</revenue>
+      <costs>280000</costs>
+      <gross_margin>170000</gross_margin>
+      <net_profit>75000</net_profit>
+      <headcount>12</headcount>
+      <deals_closed>23</deals_closed>
+      <churn_rate>0.032</churn_rate>
+    </month>
+    <month id="2025-02">
+      <revenue>610000</revenue>
+      <costs>370000</costs>
+      <gross_margin>240000</gross_margin>
+      <net_profit>138000</net_profit>
+      <headcount>13</headcount>
+      <deals_closed>31</deals_closed>
+      <churn_rate>0.024</churn_rate>
+    </month>
+    <month id="2025-03">
+      <revenue>720000</revenue>
+      <costs>430000</costs>
+      <gross_margin>290000</gross_margin>
+      <net_profit>180000</net_profit>
+      <headcount>14</headcount>
+      <deals_closed>38</deals_closed>
+      <churn_rate>0.019</churn_rate>
+    </month>
+  </department>
+  <department name="Marketing">
+    <month id="2025-01">
+      <revenue>120000</revenue>
+      <costs>95000</costs>
+      <gross_margin>25000</gross_margin>
+      <net_profit>-85000</net_profit>
+      <headcount>8</headcount>
+    </month>
+    <month id="2025-02">
+      <revenue>155000</revenue>
+      <costs>118000</costs>
+      <gross_margin>37000</gross_margin>
+      <net_profit>-88000</net_profit>
+      <headcount>9</headcount>
+    </month>
+    <month id="2025-03">
+      <revenue>180000</revenue>
+      <costs>135000</costs>
+      <gross_margin>45000</gross_margin>
+      <net_profit>-90000</net_profit>
+      <headcount>9</headcount>
+    </month>
+  </department>
+  <department name="Product">
+    <month id="2025-01">
+      <revenue>60000</revenue>
+      <costs>48000</costs>
+      <gross_margin>12000</gross_margin>
+      <net_profit>-108000</net_profit>
+      <headcount>10</headcount>
+    </month>
+    <month id="2025-02">
+      <revenue>70000</revenue>
+      <costs>54000</costs>
+      <gross_margin>16000</gross_margin>
+      <net_profit>-114000</net_profit>
+      <headcount>11</headcount>
+    </month>
+    <month id="2025-03">
+      <revenue>78000</revenue>
+      <costs>60000</costs>
+      <gross_margin>18000</gross_margin>
+      <net_profit>-120000</net_profit>
+      <headcount>12</headcount>
+    </month>
+  </department>
+</activity_report>

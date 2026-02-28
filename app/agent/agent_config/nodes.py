@@ -23,7 +23,7 @@ from agent.agent_config.state import ARIAState
 # ──────────────────────────────────────────────────────────────
 
 def _llm() -> BaseLLMProvider:
-    return BaseLLMProvider(system_prompt=SYSTEM_PROMPT)
+    return BaseLLMProvider(system_prompt=SYSTEM_PROMPT, max_tokens=4096)
 
 def _now() -> str:
     return datetime.utcnow().isoformat()
@@ -195,12 +195,42 @@ def data_extractor(state: ARIAState) -> dict:
         extract_from_file, extract_from_database,
         extract_from_api, extract_from_web
     )
-    EXTRACTOR_MAP = {
-        "file":     extract_from_file,
-        "database": extract_from_database,
-        "api":      extract_from_api,
-        "web":      extract_from_web,
-    }
+    import agent.tools as tools_module
+    import importlib
+    import inspect
+    import sys
+    
+    # ── Découvrir dynamiquement les extracteurs disponibles ─────
+    def _discover_extractors():
+        """Découvre tous les extracteurs disponibles, y compris ceux créés dynamiquement."""
+        extractors = {
+            "file":     extract_from_file,
+            "database": extract_from_database,
+            "api":      extract_from_api,
+            "web":      extract_from_web,
+        }
+        
+        # Recharger le module tools pour prendre en compte les nouveaux outils
+        # Utiliser reload seulement si le module est déjà chargé
+        if tools_module.__name__ in sys.modules:
+            try:
+                importlib.reload(tools_module)
+            except Exception:
+                pass  # Si le reload échoue, continuer avec les outils déjà chargés
+        
+        # Chercher les fonctions extract_from_* dans le module tools
+        for name, obj in inspect.getmembers(tools_module, inspect.isfunction):
+            if name.startswith("extract_from_") and name not in [
+                "extract_from_file", "extract_from_database", 
+                "extract_from_api", "extract_from_web"
+            ]:
+                # Extraire le format du nom (ex: extract_from_xml -> xml)
+                format_name = name.replace("extract_from_", "")
+                extractors[format_name] = obj
+        
+        return extractors
+    
+    EXTRACTOR_MAP = _discover_extractors()
 
     sources        = state.get("data_sources", [])
     extracted_data = []
@@ -209,7 +239,23 @@ def data_extractor(state: ARIAState) -> dict:
 
     for src in sources:
         src_type  = src.get("source_type", "file")
-        extractor = EXTRACTOR_MAP.get(src_type, extract_from_file)
+        data_format = src.get("data_format", "").lower()
+        
+        # ── Choisir l'extracteur approprié ──────────────────────
+        extractor_name = None
+        # Si c'est un fichier, essayer d'utiliser un extracteur spécifique au format
+        if src_type == "file" and data_format:
+            # Chercher un extracteur spécifique pour ce format (ex: extract_from_xml pour xml)
+            extractor = EXTRACTOR_MAP.get(data_format) or EXTRACTOR_MAP.get("file")
+            if data_format in EXTRACTOR_MAP:
+                extractor_name = f"extract_from_{data_format}"
+            else:
+                extractor_name = "extract_from_file"
+        else:
+            # Utiliser l'extracteur par défaut pour le type de source
+            extractor = EXTRACTOR_MAP.get(src_type, extract_from_file)
+            extractor_name = f"extract_from_{src_type}" if src_type in EXTRACTOR_MAP else "extract_from_file"
+        
         try:
             data = extractor(src)
             extracted_data.append({
@@ -217,6 +263,7 @@ def data_extractor(state: ARIAState) -> dict:
                 "source_type":  src_type,
                 "data":         data,
                 "extracted_at": _now(),
+                "extractor_used": extractor_name,  # Stocker l'extracteur utilisé
             })
         except Exception as e:
             errors.append(f"data_extractor [{src.get('source_id')}]: {str(e)}")
@@ -240,6 +287,10 @@ def data_operator(state: ARIAState) -> dict:
     errors  = list(state.get("errors", []))
 
     from agent.tools.operations import filter_data, aggregate_data, normalize_data, compare_data
+    import agent.tools as tools_module
+    import inspect
+    import sys
+
     OP_MAP = {
         "filter":    filter_data,
         "aggregate": aggregate_data,
@@ -247,37 +298,145 @@ def data_operator(state: ARIAState) -> dict:
         "compare":   compare_data,
     }
 
+    # ── Détecter format non supporté → déclencher tool_builder ─
+    for src_data in state.get("extracted_data", []):
+        data = src_data.get("data", {})
+        if isinstance(data, dict) and data.get("format") == "unknown":
+            path = data.get("path", "")
+            ext  = path.rsplit(".", 1)[-1].lower() if "." in path else "unknown"
+            return {
+                **viz,
+                "needs_tool_builder": True,
+                "missing_tool_spec": {
+                    "tool_name":     f"extract_from_{ext}",
+                    "description":   f"Extract and parse structured data from {ext.upper()} files into a list of dicts",
+                    "input_schema":  {"source": "dict with path_or_url and metadata"},
+                    "output_schema": {"rows": "list[dict]", "columns": "list[str]"},
+                    "example_usage": f"extract_from_{ext}({{'path_or_url': 'file.{ext}', 'metadata': {{}}}})",
+                },
+                "errors": errors,
+            }
+
+    # ── Liste des outils disponibles dans agent/tools/ ────────
+    # Recharger le module pour découvrir les nouveaux outils créés
+    import importlib
+    importlib.reload(tools_module)
+    
+    available_tools = [
+        name for name, obj in inspect.getmembers(tools_module, inspect.isfunction)
+    ]
+
     prompt = f"""
 REASONING STEP:
 1. Given domain "{state.get('domain')}" and KPIs {state.get('kpis', [])},
    which operations are necessary and in what order?
 2. Are the available ops (filter, aggregate, normalize, compare) sufficient?
+3. If not, describe precisely the missing tool needed.
+
+Available tools in agent/tools: {available_tools}
+Extracted data sample: {json.dumps(state.get('extracted_data', [])[:1], default=str)[:1000]}
 
 Respond ONLY with valid JSON:
 {{
   "reasoning": "<your reasoning>",
-  "operations": [{{"op": "normalize", "params": {{}}}}]
+  "operations": [{{"op": "normalize", "params": {{}}}}],
+  "missing_tool": {{
+    "needed": false,
+    "tool_name": null,
+    "description": null,
+    "input_schema": {{}},
+    "output_schema": {{}},
+    "example_usage": null
+  }}
 }}
 """
-    plan = llm.invoke_for_json(prompt, context=context)
+    plan     = llm.invoke_for_json(prompt, context=context)
     raw_plan = json.dumps(plan) if plan else ""
-    if not plan:
-        plan = {"operations": [{"op": "normalize", "params": {}}]}
 
+    if not plan:
+        plan = {"operations": [{"op": "normalize", "params": {}}], "missing_tool": {"needed": False}}
+
+    # ── Outil manquant détecté → déléguer au tool_builder ─────
+    missing = plan.get("missing_tool", {})
+    if missing.get("needed") and missing.get("tool_name"):
+        missing_spec = {
+            "tool_name":     missing.get("tool_name"),
+            "description":   missing.get("description", ""),
+            "input_schema":  missing.get("input_schema", {}),
+            "output_schema": missing.get("output_schema", {}),
+            "example_usage": missing.get("example_usage", ""),
+        }
+        return {
+            **viz,
+            "messages":          [HumanMessage(content=prompt), AIMessage(content=raw_plan)],
+            "needs_tool_builder": True,
+            "missing_tool_spec":  missing_spec,
+            "errors":             errors,
+        }
+
+    # ── Normaliser les params LLM → signature réelle ─────────
+    def _normalize_params(op: str, params: dict) -> dict:
+        if op == "aggregate":
+            gb = params.get("group_by") or params.get("groupby")
+            if isinstance(gb, list):
+                gb = gb[0] if gb else None
+
+            aggs = params.get("aggregations") or params.get("metrics") or {}
+
+            if isinstance(aggs, dict):
+                metrics = [{"field": f, "op": op_} for f, op_ in aggs.items()]
+            elif isinstance(aggs, list):
+                # Normaliser : string → {"field": str, "op": "sum"}
+                metrics = []
+                for item in aggs:
+                    if isinstance(item, str):
+                        metrics.append({"field": item, "op": "sum"})
+                    elif isinstance(item, dict):
+                        metrics.append({
+                            "field": item.get("field", ""),
+                            "op":    item.get("op", "sum"),
+                        })
+            else:
+                metrics = []
+
+            return {"group_by": gb, "metrics": metrics}
+
+        if op == "normalize":
+            # columns → numeric_fields
+            fields = params.get("numeric_fields") or params.get("columns") or params.get("fields")
+            # method: min_max → minmax
+            method = params.get("method", "minmax").replace("_", "").replace("-", "").lower()
+            if method not in ("minmax", "zscore", "none"):
+                method = "minmax"
+            return {"numeric_fields": fields, "method": method}
+
+        if op == "compare":
+            # metrics liste → fields
+            metrics = params.get("metrics") or params.get("fields")
+            if isinstance(metrics, list) and metrics and isinstance(metrics[0], str):
+                params = {**params, "fields": metrics}
+            return {k: v for k, v in params.items() if k not in ("metrics", "comparison_method")}
+
+        return params
+
+    # ── Appliquer les opérations disponibles ──────────────────
     processed = list(state.get("extracted_data", []))
     for op_def in plan.get("operations", []):
-        fn = OP_MAP.get(op_def.get("op"))
+        op_name = op_def.get("op")
+        fn      = OP_MAP.get(op_name)
         if fn:
             try:
-                processed = fn(processed, **op_def.get("params", {}))
+                clean_params = _normalize_params(op_name, op_def.get("params", {}))
+                processed = fn(processed, **clean_params)
             except Exception as e:
-                errors.append(f"data_operator [{op_def.get('op')}]: {str(e)}")
+                errors.append(f"data_operator [{op_name}]: {str(e)}")
 
     return {
         **viz,
-        "messages":      [HumanMessage(content=prompt), AIMessage(content=raw_plan)],
-        "processed_data": processed,
-        "errors":         errors,
+        "messages":           [HumanMessage(content=prompt), AIMessage(content=raw_plan)],
+        "processed_data":     processed,
+        "needs_tool_builder": False,
+        "errors":             errors,
     }
 
 

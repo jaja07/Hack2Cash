@@ -46,9 +46,11 @@ class ARIAState(TypedDict, total=False):
     kpis:                    list[str]
     clarification_question:  str     # question ciblée à poser à l'utilisateur si besoin
 
-    # ── Sub-agents flags (stubs — not yet implemented) ───────────────
+    # ── Sub-agents flags ─────────────────────────────────────────────
     needs_research_agent:    bool    # agent de recherche documentaire
     needs_tool_builder:      bool    # agent de création d'outils
+    missing_tool_spec:       dict    # spec de l'outil manquant à créer
+    tool_builder_result:     dict    # résultat retourné par le tool_builder
 
     # ── Data pipeline ────────────────────────────────────────────────
     data_sources:            list[DataSource]

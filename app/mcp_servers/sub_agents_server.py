@@ -1,14 +1,23 @@
 """
-ARIA — MCP Sub-Agents Server (STUB)
-Expose les points de communication vers les sous-agents futurs.
-Non implémenté — retourne des réponses placeholder.
-
+ARIA — MCP Sub-Agents Server
+Expose les sous-agents via FastMCP (transport HTTP).
 Lancer : python mcp_servers/sub_agents_server.py
 """
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Ajouter le répertoire parent au PYTHONPATH pour permettre l'import de 'agent'
+# Le serveur peut être lancé depuis app/ ou depuis le répertoire parent
+current_dir = Path(__file__).parent
+parent_dir = current_dir.parent
+if str(parent_dir) not in sys.path:
+    sys.path.insert(0, str(parent_dir))
+
 from mcp.server.fastmcp import FastMCP
+import uvicorn
 
 mcp = FastMCP("ARIA-SubAgents")
 
@@ -35,30 +44,57 @@ def research_domain(domain: str, context: str = "") -> dict:
 
 @mcp.tool()
 def build_tool(
-    tool_name: str,
-    description: str,
-    input_schema: dict,
+    tool_name:     str,
+    description:   str,
+    input_schema:  dict,
     output_schema: dict,
+    example_usage: str = "",
 ) -> dict:
     """
-    STUB — Trigger the tool-builder agent.
-    Generates and registers a new tool based on the provided specification.
+    Trigger the tool-builder agent.
+    Generates, tests, and persists a new Python tool in agent/tools/.
 
     Args:
-        tool_name     : name of the tool to create
+        tool_name     : name of the Python function to create
         description   : what the tool should do
-        input_schema  : expected inputs {field: type}
-        output_schema : expected outputs {field: type}
+        input_schema  : expected inputs {param_name: type_str}
+        output_schema : expected outputs {field_name: type_str}
+        example_usage : optional example call string
 
     Returns:
-        {status, message, tool_id}
+        {tool_name, status, code, persisted_at, validated, error}
     """
-    return {
-        "status":  "stub",
-        "message": f"Tool builder agent not yet implemented. Requested: {tool_name}",
-        "tool_id": None,
+    try:
+        from agent.sub_agents.tool_builder.graph import run_tool_builder
+    except ImportError as e:
+        import traceback
+        return {
+            "tool_name": tool_name,
+            "status": "failed",
+            "error": f"Import error: {str(e)}\nPYTHONPATH: {sys.path}\nTraceback: {traceback.format_exc()}",
+            "validated": False,
+        }
+
+    tool_spec = {
+        "tool_name":     tool_name,
+        "description":   description,
+        "input_schema":  input_schema,
+        "output_schema": output_schema,
+        "example_usage": example_usage,
     }
+
+    try:
+        return run_tool_builder(tool_spec, thread_id=f"tool-{tool_name}")
+    except Exception as e:
+        import traceback
+        return {
+            "tool_name": tool_name,
+            "status": "failed",
+            "error": f"Error executing tool build_tool: {str(e)}\nTraceback: {traceback.format_exc()}",
+            "validated": False,
+        }
 
 
 if __name__ == "__main__":
-    mcp.run(transport="http", port=8002)
+    
+    uvicorn.run(mcp.streamable_http_app(), host="0.0.0.0", port=8002)

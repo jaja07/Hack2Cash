@@ -41,10 +41,137 @@ def research_agent(state: ARIAState) -> dict:
 
 
 def tool_builder_agent(state: ARIAState) -> dict:
-    """STUB — agent de création d'outils (non implémenté)."""
+    """Appelle le tool_builder via le serveur MCP sub_agents (port 8002)."""
+    import asyncio
+    import json
+    import traceback
+    from mcp import ClientSession
+    from mcp.client.streamable_http import streamablehttp_client
+    
+    # Import TextContent si disponible, sinon utiliser une approche générique
+    try:
+        from mcp.types import TextContent
+    except ImportError:
+        TextContent = None
+
+    spec   = state.get("missing_tool_spec", {})
+    errors = list(state.get("errors", []))
+
+    async def _call_mcp():
+        try:
+            async with streamablehttp_client("http://localhost:8002/mcp") as (read, write, _):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    
+                    # Appel de l'outil MCP
+                    result = await session.call_tool("build_tool", arguments={
+                        "tool_name":     spec.get("tool_name"),
+                        "description":   spec.get("description", ""),
+                        "input_schema":  spec.get("input_schema", {}),
+                        "output_schema": spec.get("output_schema", {}),
+                        "example_usage": spec.get("example_usage", ""),
+                    })
+                    
+                    # Debug: log de la structure de résultat (peut être retiré après validation)
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.debug(f"MCP result type: {type(result)}, has content: {hasattr(result, 'content')}, dir: {[a for a in dir(result) if not a.startswith('_')]}")
+                    
+                    # Extraire le contenu texte de la réponse MCP
+                    # La réponse MCP contient une liste de blocs de contenu
+                    if hasattr(result, "content") and result.content:
+                        # Parcourir tous les blocs de contenu
+                        for block in result.content:
+                            # Si c'est un bloc texte (avec TextContent ou type similaire)
+                            if TextContent and isinstance(block, TextContent):
+                                try:
+                                    return json.loads(block.text)
+                                except json.JSONDecodeError:
+                                    # Si ce n'est pas du JSON, c'est peut-être une erreur du serveur
+                                    error_text = block.text[:500] if hasattr(block, "text") else str(block)[:500]
+                                    return {
+                                        "status": "failed",
+                                        "error": f"Invalid JSON in MCP response: {error_text}",
+                                        "tool_name": spec.get("tool_name", "unknown"),
+                                        "validated": False,
+                                    }
+                            # Si le bloc a un attribut text directement (approche générique)
+                            elif hasattr(block, "text"):
+                                try:
+                                    text_content = block.text if isinstance(block.text, str) else str(block.text)
+                                    # Essayer de parser comme JSON
+                                    parsed = json.loads(text_content)
+                                    return parsed
+                                except json.JSONDecodeError:
+                                    # Si ce n'est pas du JSON, vérifier si c'est une erreur du serveur
+                                    text_str = str(block.text) if hasattr(block, "text") else str(block)
+                                    # Si le texte contient "Error" ou "error", c'est probablement une erreur du serveur
+                                    if "error" in text_str.lower() or "Error" in text_str:
+                                        return {
+                                            "status": "failed",
+                                            "error": text_str[:500],  # Limiter la taille
+                                            "tool_name": spec.get("tool_name", "unknown"),
+                                            "validated": False,
+                                        }
+                                    # Sinon, essayer d'accéder au dict directement
+                                    if isinstance(block, dict):
+                                        return block
+                                    return {"status": "failed", "error": f"Could not parse block text: {text_str[:200]}"}
+                                except (TypeError, AttributeError) as e:
+                                    # Essayer d'accéder au dict directement si c'est déjà un dict
+                                    if isinstance(block, dict):
+                                        return block
+                                    return {"status": "failed", "error": f"Could not parse block: {type(block)}, error: {str(e)}"}
+                            # Si le bloc est déjà un dict, le retourner directement
+                            elif isinstance(block, dict):
+                                return block
+                    
+                    # Si aucun contenu trouvé, essayer d'accéder directement au résultat
+                    if hasattr(result, "result"):
+                        if isinstance(result.result, dict):
+                            return result.result
+                        elif isinstance(result.result, str):
+                            try:
+                                return json.loads(result.result)
+                            except json.JSONDecodeError:
+                                return {"status": "failed", "error": f"Result is not JSON: {result.result[:200]}"}
+                    
+                    return {"status": "failed", "error": f"No content in MCP response. Result type: {type(result)}, attributes: {dir(result)}"}
+                    
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            error_msg = f"MCP call error: {str(e)}\n{traceback.format_exc()}"
+            return {"status": "failed", "error": error_msg}
+
+    try:
+        result = asyncio.run(_call_mcp())
+        if not isinstance(result, dict):
+            result = {"status": "failed", "error": f"Unexpected result type: {type(result)}"}
+    except Exception as e:
+        error_msg = f"tool_builder_agent MCP call failed: {str(e)}\n{traceback.format_exc()}"
+        errors.append(error_msg)
+        result = {"status": "failed", "error": error_msg}
+
+    # ── Validation par ARIA ───────────────────────────────────
+    validated = False
+    if result.get("status") == "success" and result.get("code"):
+        try:
+            namespace: dict = {}
+            exec(compile(result["code"], "<aria_validation>", "exec"), namespace)  # noqa: S102
+            tool_fn   = namespace.get(spec.get("tool_name"))
+            validated = callable(tool_fn)
+        except Exception as e:
+            errors.append(f"tool_builder_agent validation failed: {str(e)}")
+
+    result["validated"] = validated
+
     return {
-        "needs_tool_builder": False,
-        "current_node": "tool_builder_agent",
+        "needs_tool_builder":  False,
+        "missing_tool_spec":   {},
+        "tool_builder_result": result,
+        "current_node":        "tool_builder_agent",
+        "errors":              errors,
     }
 
 

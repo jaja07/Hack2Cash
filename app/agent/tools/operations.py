@@ -7,6 +7,32 @@ from __future__ import annotations
 from typing import Any
 
 
+def _extract_rows(rec) -> list:
+    """
+    Extrait une liste de dicts plats depuis n'importe quelle structure
+    produite par le pipeline ARIA :
+      - {"source_id":..., "data": {"rows":[...]}}  extractor wrapper
+      - {"rows":[...], "columns":[...]}             outil dynamique direct
+      - {"data":[...]}                              liste directe
+      - {...}                                       dict plat
+    """
+    if not isinstance(rec, dict):
+        return []
+    data = rec.get("data") or rec.get("rows") or rec.get("pages")
+    # Descendre d'un niveau si data est encore un dict avec "rows"
+    if isinstance(data, dict):
+        data = data.get("rows") or data.get("data") or data.get("pages") or data
+    if isinstance(data, list):
+        return [r for r in data if isinstance(r, dict)]
+    if isinstance(data, dict):
+        return [data]
+    # Dict plat sans wrapper connu → l'enregistrement lui-même
+    if not any(k in rec for k in ("data", "rows", "pages", "source_id", "extracted_at")):
+        return [rec]
+    return []
+
+
+
 # ══════════════════════════════════════════════════════════════
 # TOOL 5 — filter_data
 # ══════════════════════════════════════════════════════════════
@@ -36,9 +62,7 @@ def filter_data(
     result = []
 
     for rec in records:
-        # Handle wrapped records from extraction pipeline
-        data = rec.get("data") if "data" in rec else rec
-        rows = data if isinstance(data, list) else [data]
+        rows = _extract_rows(rec)
 
         for row in rows:
             if not isinstance(row, dict):
@@ -102,14 +126,12 @@ def aggregate_data(
     # Flatten wrapped records
     flat: list[dict] = []
     for rec in records:
-        data = rec.get("data") if "data" in rec else rec
-        rows = data if isinstance(data, list) else [data]
-        for row in rows:
-            if isinstance(row, dict):
-                flat.append(row)
+        if isinstance(rec, str):
+            continue
+        flat.extend(_extract_rows(rec))
 
     if not flat:
-        return records  # pass-through if no flat data
+        return []  # rien à agréger
 
     metrics = metrics or []
 
@@ -119,7 +141,7 @@ def aggregate_data(
         for m in metrics:
             field = m.get("field", "")
             op    = m.get("op", "sum")
-            vals  = [float(r[field]) for r in flat if field in r and r[field] is not None]
+            vals  = [float(r[field]) for r in flat if field in r and _is_numeric(r.get(field))]
             agg[f"{op}_{field}"] = _apply_op(op, vals)
         return [agg]
 
@@ -127,6 +149,8 @@ def aggregate_data(
     groups: dict[Any, list[dict]] = defaultdict(list)
     for row in flat:
         key = row.get(group_by, "__unknown__")
+        if isinstance(key, (list, dict)):
+            key = str(key)
         groups[key].append(row)
 
     result = []
@@ -135,7 +159,7 @@ def aggregate_data(
         for m in metrics:
             field = m.get("field", "")
             op    = m.get("op", "sum")
-            vals  = [float(r[field]) for r in rows if field in r and r[field] is not None]
+            vals  = [float(r[field]) for r in rows if field in r and _is_numeric(r.get(field))]
             agg[f"{op}_{field}"] = _apply_op(op, vals)
         result.append(agg)
 
@@ -187,11 +211,9 @@ def normalize_data(
     # Flatten
     flat: list[dict] = []
     for rec in records:
-        data = rec.get("data") if "data" in rec else rec
-        rows = data if isinstance(data, list) else [data]
-        for row in rows:
-            if isinstance(row, dict):
-                flat.append(dict(row))
+        if isinstance(rec, str):
+            continue
+        flat.extend(dict(r) for r in _extract_rows(rec))
 
     if not flat:
         return records
@@ -273,11 +295,9 @@ def compare_data(
     """
     flat: list[dict] = []
     for rec in records:
-        data = rec.get("data") if "data" in rec else rec
-        rows = data if isinstance(data, list) else [data]
-        for row in rows:
-            if isinstance(row, dict):
-                flat.append(dict(row))
+        if isinstance(rec, str):
+            continue
+        flat.extend(dict(r) for r in _extract_rows(rec))
 
     if not flat:
         return records
@@ -307,11 +327,7 @@ def compare_data(
         if baseline:
             baseline_flat: list[dict] = []
             for brec in baseline:
-                bdata = brec.get("data") if "data" in brec else brec
-                brows = bdata if isinstance(bdata, list) else [bdata]
-                for brow in brows:
-                    if isinstance(brow, dict):
-                        baseline_flat.append(brow)
+                baseline_flat.extend(_extract_rows(brec))
 
             check_fields = fields or [
                 k for k in row.keys() if _is_numeric(row.get(k))

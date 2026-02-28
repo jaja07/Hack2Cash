@@ -1,0 +1,77 @@
+# Rapport d'activité Q1-2025 — Domaine RH
+activity_report:
+  period: Q1-2025
+  domain: HR
+
+  departments:
+    - name: Engineering
+      months:
+        - id: "2025-01"
+          headcount: 45
+          new_hires: 3
+          attrition: 1
+          avg_salary: 82000
+          training_hours: 12
+          open_positions: 5
+        - id: "2025-02"
+          headcount: 47
+          new_hires: 4
+          attrition: 2
+          avg_salary: 82500
+          training_hours: 15
+          open_positions: 4
+        - id: "2025-03"
+          headcount: 49
+          new_hires: 3
+          attrition: 1
+          avg_salary: 83000
+          training_hours: 18
+          open_positions: 3
+
+    - name: Sales
+      months:
+        - id: "2025-01"
+          headcount: 22
+          new_hires: 2
+          attrition: 3
+          avg_salary: 65000
+          training_hours: 8
+          open_positions: 4
+        - id: "2025-02"
+          headcount: 21
+          new_hires: 1
+          attrition: 2
+          avg_salary: 65500
+          training_hours: 10
+          open_positions: 5
+        - id: "2025-03"
+          headcount: 20
+          new_hires: 2
+          attrition: 3
+          avg_salary: 66000
+          training_hours: 9
+          open_positions: 6
+
+    - name: Operations
+      months:
+        - id: "2025-01"
+          headcount: 30
+          new_hires: 1
+          attrition: 0
+          avg_salary: 54000
+          training_hours: 6
+          open_positions: 2
+        - id: "2025-02"
+          headcount: 31
+          new_hires: 2
+          attrition: 1
+          avg_salary: 54200
+          training_hours: 7
+          open_positions: 1
+        - id: "2025-03"
+          headcount: 32
+          new_hires: 2
+          attrition: 1
+          avg_salary: 54500
+          training_hours: 8
+          open_positions: 2

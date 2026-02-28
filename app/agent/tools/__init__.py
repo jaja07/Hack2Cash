@@ -18,3 +18,7 @@ __all__ = [
     "render_markdown", "render_html", "render_pdf", "render_pptx",
     "render_charts",
 ]
+
+from agent.tools.extract_from_excel_advanced import extract_from_excel_advanced
+from agent.tools.extract_from_xml import extract_from_xml
+from agent.tools.extract_from_yaml import extract_from_yaml
