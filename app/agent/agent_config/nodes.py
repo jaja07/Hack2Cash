@@ -23,7 +23,7 @@ from agent.agent_config.state import ARIAState
 # ──────────────────────────────────────────────────────────────
 
 def _llm() -> BaseLLMProvider:
-    return BaseLLMProvider(system_prompt=SYSTEM_PROMPT, max_tokens=4096)
+    return BaseLLMProvider(system_prompt=SYSTEM_PROMPT, max_tokens=8192)
 
 def _now() -> str:
     return datetime.utcnow().isoformat()
@@ -53,6 +53,16 @@ def _windowed_context(state: ARIAState) -> str | None:
             return msg.content
     return None
 
+def _user_query_block(state: ARIAState) -> str:
+    uq = state.get("user_query")
+    if not uq:
+        return ""
+    return (
+        f"\n>>> USER INSTRUCTION (priorité haute — oriente toute l'analyse) :\n"
+        f'"{uq}"\n'
+        f"Tiens impérativement compte de cette instruction pour choisir le domaine, "
+        f"les KPIs, les opérations, et les findings.\n\n"
+    )
 
 # ──────────────────────────────────────────────────────────────
 # NODE 1 — domain_identifier
@@ -104,10 +114,14 @@ def domain_identifier(state: ARIAState) -> dict:
     errors  = list(state.get("errors", []))
 
     data_preview = _preview_sources(sources)
+    user_query_ctx = _user_query_block(state)
+    has_files      = bool(sources)
 
     prompt = f"""
+    {user_query_ctx}
 REASONING STEP — answer before acting:
 1. What do the data columns and sample rows tell us about the domain?
+{"(No file provided — infer domain from the USER INSTRUCTION above.)" if not has_files else ""}
 2. Is the domain clear enough (confidence ≥ 0.6) to proceed, or should I ask the user?
 3. Is this domain specific enough to require the research agent?
 
@@ -326,12 +340,15 @@ def data_operator(state: ARIAState) -> dict:
         name for name, obj in inspect.getmembers(tools_module, inspect.isfunction)
     ]
 
+    user_query_ctx = _user_query_block(state)
+
     prompt = f"""
-REASONING STEP:
+{user_query_ctx} REASONING STEP:
 1. Given domain "{state.get('domain')}" and KPIs {state.get('kpis', [])},
    which operations are necessary and in what order?
-2. Are the available ops (filter, aggregate, normalize, compare) sufficient?
-3. If not, describe precisely the missing tool needed.
+2. {"The user instruction MUST influence which fields to filter, group, or prioritize." if state.get("user_query") else "No specific user instruction."}
+3. Are the available ops (filter, aggregate, normalize, compare) sufficient?
+4. If not, describe precisely the missing tool needed.
 
 Available tools in agent/tools: {available_tools}
 Extracted data sample: {json.dumps(state.get('extracted_data', [])[:1], default=str)[:1000]}
@@ -460,6 +477,10 @@ def rag_retriever(state: ARIAState) -> dict:
         f"historical trends {domain} {period}",
     ]
 
+    user_query = state.get("user_query")
+    if user_query:
+        queries.append(f"{domain} {user_query[:100]}")
+
     rag_context = []
     for q in queries:
         try:
@@ -515,12 +536,15 @@ def triz_analyzer(state: ARIAState) -> dict:
     consolidated = state.get("consolidated_data", {})
     iteration    = state.get("iteration", 0)
 
+    user_query_ctx = _user_query_block(state)
+
     prompt = f"""
-REASONING STEP:
+{user_query_ctx}REASONING STEP:
 1. What are the main contradictions visible in this dataset?
-2. What is the Ideal Final Result (IFR) for this domain?
-3. Which TRIZ inventive principles apply to each contradiction?
-4. What are the root causes (not symptoms)?
+{"2. The user instruction MUST orient the findings and recommendations." if state.get("user_query") else "2. No specific user instruction."}
+3. What is the Ideal Final Result (IFR) for this domain?
+4. Which TRIZ inventive principles apply to each contradiction?
+5. What are the root causes (not symptoms)?
 
 Domain: {state.get('domain')} | Period: {state.get('reporting_period')} | KPIs: {state.get('kpis')}
 Consolidated dataset (truncated):
@@ -610,6 +634,7 @@ def report_generator(state: ARIAState) -> dict:
             "reporting_period": state.get("reporting_period"),
             "kpis":            state.get("kpis", []),
             "data_sources":    [s.get("source_id") for s in state.get("data_sources", [])],
+            "user_query":       state.get("user_query"),
             "generated_at":    _now(),
             "degraded":        state.get("degraded_report", False),
         },

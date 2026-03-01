@@ -21,7 +21,8 @@ def parse_args():
     parser.add_argument("--file",     type=str, help="Path to file to analyse (pdf, csv, excel, json, txt)")
     parser.add_argument("--url",      type=str, help="URL to scrape")
     parser.add_argument("--db",       type=str, help="SQLite path or connection string")
-    parser.add_argument("--query",    type=str, help="SQL query (used with --db)")
+    parser.add_argument("--db-query", type=str, help="SQL query (used with --db)")
+    parser.add_argument("--query",    type=str, help="Prompt utilisateur pour orienter l'analyse")
     parser.add_argument("--formats",  type=str, default="json,markdown", help="Output formats (comma-separated)")
     parser.add_argument("--thread",   type=str, default="aria-default", help="Thread ID for checkpointing")
     parser.add_argument("--stream",   action="store_true", help="Enable streaming mode")
@@ -57,7 +58,7 @@ def build_sources(args) -> list[dict]:
             "source_type": "database",
             "path_or_url": args.db,
             "data_format": "sql",
-            "metadata":    {"query": args.query or "SELECT * FROM reports LIMIT 100"},
+            "metadata": {"query": args.db_query or "SELECT * FROM reports LIMIT 100"},
         })
 
     # Fallback — exemple fictif si aucune source fournie
@@ -98,6 +99,7 @@ def main():
             output_formats=formats,
             thread_id=args.thread,
             stream=True,
+            user_query=args.query or None,
         ):
             if isinstance(update, dict):
                 for node_name, node_state in update.items():
@@ -271,6 +273,7 @@ def main():
         output_formats=formats,
         thread_id=args.thread,
         stream=False,
+        user_query=args.query or None,   # ← ajouter
     )
 
     if not result:

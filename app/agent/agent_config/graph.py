@@ -282,6 +282,7 @@ def run_aria(
     output_formats: list[str] | None = None,
     thread_id:      str = "aria-default",
     stream:         bool = False,
+    user_query:     str | None = None,
 ):
     if output_formats is None:
         output_formats = ["json", "markdown", "html", "pdf", "pptx"]
@@ -291,6 +292,7 @@ def run_aria(
         "data_sources":   data_sources,
         "output_formats": output_formats,
         "iteration":      0,
+        "user_query":     user_query,
         "errors":         [],
         "node_history":   [],
         "decisions":      [],
