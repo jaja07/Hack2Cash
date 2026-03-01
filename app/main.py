@@ -21,14 +21,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(user_router.router)
-app.include_router(agent_router.router)
+app.include_router(user_router.router,prefix="/api")
+app.include_router(agent_router.router,prefix="/api")
 
 
 @app.get("/", tags=["Health"])
