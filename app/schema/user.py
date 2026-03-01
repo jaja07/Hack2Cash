@@ -33,7 +33,6 @@ class UserCreateDTO(UserBase):
                 "prenom": "John",
                 "role": "user",
                 "password": "1234",
-                "units": 0.0
             }
     }
 

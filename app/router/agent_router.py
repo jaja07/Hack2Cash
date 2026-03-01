@@ -10,7 +10,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from entity.user_entity import User
+from app.database.models import User
 from schema.agent import AnalyzeRequest, AnalyzeResponse, AgentStatusResponse
 from service.auth_service import get_current_user
 

@@ -1,4 +1,4 @@
-from .user_entity import User  # Importer le modèle User pour que SQLModel puisse créer la table correspondante dans la base de données
+from .models import User  # Importer le modèle User pour que SQLModel puisse créer la table correspondante dans la base de données
 from core.config import settings
 from typing import Annotated
 from fastapi import Depends
