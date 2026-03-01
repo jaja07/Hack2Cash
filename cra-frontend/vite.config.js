@@ -24,7 +24,8 @@ export default defineConfig({
   },
 
   build: {
-    outDir: '../cra-test-app/static',
+    //outDir: '../cra-test-app/static',
+    outDir: 'dist',
     emptyOutDir: true,
   },
 
