@@ -5,6 +5,7 @@ ARIA — LangGraph 1.0 Graph Assembly & Compilation
 from __future__ import annotations
 
 from langgraph.graph import StateGraph, START, END
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.checkpoint.memory import MemorySaver
 
 from agent.agent_config.state import ARIAState
@@ -179,7 +180,8 @@ def tool_builder_agent(state: ARIAState) -> dict:
 # Graph builder
 # ──────────────────────────────────────────────────────────────
 
-def build_graph(checkpointer=None) -> StateGraph:
+def build_graph(checkpointer=None) -> CompiledStateGraph:
+    """Assemble et compile le graphe ARIA. Le checkpointer peut être passé en argument pour la persistance d'état."""
     if checkpointer is None:
         checkpointer = MemorySaver()
 

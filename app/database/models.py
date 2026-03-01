@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 from datetime import datetime, timezone
 from typing import Optional
 
-MAX_MESSAGE_LENGTH = 2000
+MAX_MESSAGE_LENGTH = 100000
 
 class UserRole(str, Enum):
     ADMIN = "admin"

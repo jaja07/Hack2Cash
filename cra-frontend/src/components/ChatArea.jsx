@@ -4,6 +4,7 @@ import ChatInput from './ChatInput'
 import AgentGraph from './AgentGraph'
 import { useChat } from '../hooks/useChat'
 import { uploadAndAnalyze } from '../api/client'
+import { uploadForWebsocket } from '../api/client'
 
 export default function ChatArea({ conversationId }) {
   // Appel avec un seul argument
@@ -19,7 +20,8 @@ const handleFile = async (file) => {
   setUploading(true);
   try {
     // Étape 1 : Envoi physique au serveur (POST /api/agents/analyze/upload)
-    await uploadAndAnalyze(file); 
+    //await uploadAndAnalyze(file);
+    await uploadForWebsocket(conversationId, file); // Utilise la nouvelle route d'upload pour websocket
     
     // Étape 2 : Confirmation visuelle
     // Vous pouvez utiliser une alerte standard ou un état pour afficher un badge

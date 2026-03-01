@@ -62,4 +62,13 @@ export const uploadAndAnalyze = (file) => {
   }).then((r) => r.data)
 }
 
+// Uploader pour l'analyse à travers le websocket
+export const uploadForWebsocket = (conversationId, file) => {
+  const form = new FormData()
+  form.append('file', file)
+  return api.post(`ws/${conversationId}/upload`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then((r) => r.data)
+}
+
 export default api
