@@ -1,6 +1,6 @@
 // hooks/useConversations.js
 import { useState, useEffect, useCallback } from 'react'
-import { fetchConversations, createConversation, deleteConversation, updateConversationTitle } from '../api/conversations'
+import { fetchConversations, createConversation, deleteConversation, updateConversationTitle } from '../api/conversation'
 
 export function useConversations() {   // ← plus de paramètre token
   const [conversations, setConversations] = useState([])
