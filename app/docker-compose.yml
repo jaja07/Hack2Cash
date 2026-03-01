@@ -38,8 +38,24 @@ services:
     networks:
       - hack2cash-network
 
+  frontend:
+    build:
+      context: ../cra-frontend
+    container_name: hack2cash-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - cra-frontend:/app
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+ 
+
 volumes:
   hack2cash_data:
+  cra-frontend:
+
 
 networks:
   hack2cash-network:

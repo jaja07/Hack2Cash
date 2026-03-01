@@ -15,7 +15,7 @@ from database.session import SessionDep
 logger = logging.getLogger(__name__)
 
 password_hash = PasswordHash.recommended()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/token")
 
 
 class AuthService:
