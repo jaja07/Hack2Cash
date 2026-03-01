@@ -113,9 +113,9 @@ export default function AgentGraph({ agentStatuses = {} }) {
       
       {/* Légende */}
       <div className="p-4 border-t border-white/5 flex gap-4 text-[10px] text-gray-500 justify-center">
-        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-700" /> Attente</div>
-        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500" /> En cours</div>
-        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Terminé</div>
+        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-700" /> Waiting</div>
+        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500" /> Running</div>
+        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Done</div>
       </div>
     </div>
   );

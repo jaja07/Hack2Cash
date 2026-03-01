@@ -1,5 +1,7 @@
 // src/components/Sidebar.jsx
-
+import { useAuth } from '../context/AuthContext'
+// 1. Importez l'image en haut du fichier
+import logoImage from '../assets/technology_1.webp';
 export default function Sidebar({ 
   activeSection, 
   onSection, 
@@ -9,16 +11,22 @@ export default function Sidebar({
   activeConvId 
 }) {
   // Détermine si on affiche la liste de l'historique ou le menu principal
+const { user, logout } = useAuth(); // Récupération des données utilisateur et de la fonction logout
+  
   const isHistoryView = activeSection === 'History';
 
   return (
     <aside className="w-64 flex-shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col h-screen font-sans">
-      {/* BRAND / LOGO */}
+{/* BRAND / LOGO MODIFIÉ */}
       <div className="p-5 border-b border-gray-800 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold">
-          A
+        <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-gray-800">
+          <img 
+            src={logoImage} 
+            alt="ARIA Logo" 
+            className="w-full h-full object-cover" 
+          />
         </div>
-        <span className="font-bold text-white tracking-tight">CRA ANALYZER</span>
+        <span className="font-bold text-white tracking-tight">ARIA</span>
       </div>
 
       <nav className="px-3 flex-1 space-y-1 overflow-y-auto mt-6">
@@ -95,13 +103,32 @@ export default function Sidebar({
         )}
       </nav>
 
-      {/* FOOTER */}
+{/* FOOTER MODIFIÉ */}
       <div className="p-4 border-t border-gray-800 bg-gray-900/50">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-gray-700 flex-shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-white truncate">User Account</p>
+        <div className="flex items-center justify-between gap-3 px-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              {/* Affiche les initiales ou une icône */}
+              {user?.prenom?.[0]}{user?.nom?.[0]}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-white truncate">
+                {user?.prenom} {user?.nom} {/* Affichage du prénom et nom */}
+              </p>
+              <p className="text-[10px] text-gray-500 truncate">{user?.email}</p>
+            </div>
           </div>
+          
+          {/* Bouton de déconnexion */}
+          <button 
+            onClick={logout}
+            title="Déconnexion"
+            className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
         </div>
       </div>
     </aside>

@@ -38,7 +38,7 @@ const handleFile = async (file) => {
     <div className="flex flex-col h-screen flex-1 overflow-hidden bg-gray-950">
       <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 bg-gray-900/80 backdrop-blur-sm shrink-0">
         <div>
-          <h2 className="font-semibold text-white text-sm">Analyse Intelligence ARIA</h2>
+          <h2 className="font-semibold text-white text-sm">ARIA</h2>
           <div className="flex items-center gap-2 mt-1">
             <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`} />
             <p className="text-gray-500 text-xs capitalize">{status}</p>

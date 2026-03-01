@@ -41,7 +41,7 @@ export default function Dashboard() {
         ) : (
           <div className="flex-1 h-full flex items-center justify-center text-gray-500">
             <div className="text-center">
-              <p className="text-lg">Sélectionnez une conversation ou créez-en une nouvelle</p>
+              <p className="text-lg">Select a conversation or create a new one</p>
             </div>
           </div>
         )}

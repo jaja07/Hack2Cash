@@ -208,7 +208,7 @@ const handleRegister = async (e) => {
           <div className="w-9 h-9 rounded-lg bg-brand-600 flex items-center justify-center text-white">
             <IconChart />
           </div>
-          <span className="text-white font-bold text-lg tracking-tight">CRA Analytics</span>
+          <span className="text-white font-bold text-lg tracking-tight">ARIA</span>
         </div>
 
         {/* Baseline */}
