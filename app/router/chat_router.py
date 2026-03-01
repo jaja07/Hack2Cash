@@ -21,9 +21,9 @@ CurrentUserDep   = Annotated[User, Depends(get_current_user)]
 
 @router.post("/", response_model=ConversationOut)
 async def create_conversation(
+    user: CurrentUserDep,
+    chat_service: ChatServiceDep,
     title: str = "Nouvelle conversation",
-    user: CurrentUserDep = Depends(get_current_user),
-    chat_service: ChatServiceDep = Depends(get_chat_service),
 ):
     """Crée une nouvelle conversation pour l'utilisateur connecté."""
     conversation = chat_service.create_conversation(user_id=user.id, title=title)

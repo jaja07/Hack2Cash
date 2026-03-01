@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from sqlmodel import SQLModel
-from app.database.models import User  # Importer le modèle User pour que SQLModel puisse créer la table correspondante dans la base de données
+from database.models import User  # Importer le modèle User pour que SQLModel puisse créer la table correspondante dans la base de données
 from dotenv import load_dotenv
 import os
 

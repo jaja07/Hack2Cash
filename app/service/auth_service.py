@@ -71,7 +71,7 @@ def get_current_user(
     Dependency FastAPI : extrait l'utilisateur courant depuis le Bearer JWT.
     À injecter dans les routes protégées.
     """
-    from app.database.models import User  # import local pour éviter les circulaires
+    from database.models import User  # import local pour éviter les circulaires
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from core.config import settings
 from database.session import SessionDep
-from app.database.models import User
+from database.models import User
 from schema.user import Token, UserCreateDTO, UserReadDTO
 from service.auth_service import AuthService, get_current_user
 from service.user_service import UserService

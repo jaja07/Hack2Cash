@@ -3,7 +3,7 @@ schema/agent.py
 Pydantic schemas pour le pipeline ARIA.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Any, Optional
 
 
@@ -43,7 +43,15 @@ class AnalyzeRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "data_sources": [...],
+                "data_sources": [
+                    {
+                        "source_id": "report-001",
+                        "source_type": "file",
+                        "path_or_url": "/uploads/report_q1.csv",
+                        "data_format": "csv",
+                        "metadata": {},
+                    }
+                ],
                 "output_formats": ["json", "markdown"],
                 "thread_id": "session-abc123",
             }

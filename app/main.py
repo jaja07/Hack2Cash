@@ -3,6 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from router import user_router
 from router import agent_router
+from router import chat_router
+from router import websocket
 
 
 @asynccontextmanager
@@ -29,6 +31,8 @@ app.add_middleware(
 
 app.include_router(user_router.router)
 app.include_router(agent_router.router)
+app.include_router(chat_router.router)
+app.include_router(websocket.router)
 
 
 @app.get("/", tags=["Health"])

@@ -1,10 +1,11 @@
 # schemas.py
 from datetime import datetime
-from pydantic import BaseModel
+from uuid import UUID
+from pydantic import BaseModel, Field
 
 
 class MessageOut(BaseModel):
-    id: int
+    id: UUID
     content: str
     role: str
     created_at: datetime
@@ -13,7 +14,7 @@ class MessageOut(BaseModel):
 
 
 class ConversationOut(BaseModel):
-    id: int
+    id: UUID
     title: str
     created_at: datetime
 
@@ -21,9 +22,9 @@ class ConversationOut(BaseModel):
 
 
 class ConversationWithMessages(BaseModel):
-    id: int
+    id: UUID
     title: str
     created_at: datetime
-    messages: list[MessageOut] = []
+    messages: list[MessageOut] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}

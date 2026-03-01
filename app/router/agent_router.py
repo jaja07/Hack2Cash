@@ -9,7 +9,7 @@ import tempfile
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from typing import Annotated, Optional
 
-from app.database.models import User
+from database.models import User
 from schema.agent import AnalyzeRequest, AnalyzeResponse, AgentStatusResponse
 from service.auth_service import get_current_user
 

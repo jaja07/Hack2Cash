@@ -29,10 +29,10 @@ class User(SQLModel, table=True):
     hashed_password: str = Field(nullable=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    conversations: list["Conversation"] = Relationship(back_populates="user")
+    conversations: list["Conversation"] = Relationship(back_populates="user", cascade_delete=True)
 
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "email": "josiane.ife@example.com",
                 "nom": "IFE",
@@ -40,16 +40,19 @@ class User(SQLModel, table=True):
                 "role": "user"
             }
         }
+    }
 
 class Conversation(SQLModel, table=True):
+    __tablename__ = "conversations" # pyright: ignore
+
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     title: str = Field(default="Nouvelle conversation")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    user_id: Optional[UUID] = Field(default=None, foreign_key="user.id")
+    user_id: Optional[UUID] = Field(default=None, foreign_key="users.id", ondelete="CASCADE")
     user: Optional[User] = Relationship(back_populates="conversations")
 
-    messages: list["Message"] = Relationship(back_populates="conversation")
+    messages: list["Message"] = Relationship(back_populates="conversation", cascade_delete=True)
 
 
 class Message(SQLModel, table=True):
@@ -58,5 +61,5 @@ class Message(SQLModel, table=True):
     role: MessageRole = Field(nullable=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    conversation_id: Optional[UUID] = Field(default=None, foreign_key="conversation.id")
+    conversation_id: Optional[UUID] = Field(default=None, foreign_key="conversations.id", ondelete="CASCADE")
     conversation: Optional[Conversation] = Relationship(back_populates="messages")

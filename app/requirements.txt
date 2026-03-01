@@ -19,4 +19,4 @@ weasyprint==68.1
 python-pptx==1.0.2
 pandas==3.0.1
 httpx==0.28.1
-websockets
+websockets==16.0

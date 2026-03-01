@@ -7,6 +7,8 @@ from database.session import SessionDep
 from service.auth_service import AuthService
 from service.chat_service import ChatService
 from database.models import MAX_MESSAGE_LENGTH, User
+from run import main
+from agent import run_aria
 
 router = APIRouter()
 
@@ -60,6 +62,7 @@ async def websocket_endpoint(
             await websocket.send_json({"type": "status", "content": "thinking"})
 
             response = f"Tu as dit : {user_message}"
+            #response = main()
 
             chat_service.save_message(conversation_id, response, "assistant")
             history.append({"role": "assistant", "content": response})
@@ -67,4 +70,4 @@ async def websocket_endpoint(
             await websocket.send_json({"type": "message", "content": response})
 
     except WebSocketDisconnect:
-        pass
+        print(f"L'utilisateur {user.email} s'est déconnecté de la conversation {conversation_id}.")
