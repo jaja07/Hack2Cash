@@ -29,10 +29,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(user_router.router)
-app.include_router(agent_router.router)
-app.include_router(chat_router.router)
-app.include_router(websocket.router)
+app.include_router(user_router.router, prefix="/api")
+app.include_router(agent_router.router, prefix="/api")
+app.include_router(chat_router.router, prefix="/api")
+app.include_router(websocket.router, prefix="/api")
 
 
 @app.get("/", tags=["Health"])
