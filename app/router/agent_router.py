@@ -6,9 +6,8 @@ Toutes les routes sont protégées par JWT.
 
 import os
 import tempfile
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from typing import Annotated, Optional
 
 from entity.user_entity import User
 from schema.agent import AnalyzeRequest, AnalyzeResponse, AgentStatusResponse
@@ -58,11 +57,14 @@ def analyze(
         )
 
     try:
+        user_query = request.query.strip() if request.query and request.query.strip() else None
+
         result = run_aria(
             data_sources=sources,
             output_formats=request.output_formats,
             thread_id=request.thread_id or str(current_user.id),
             stream=False,
+            user_query=user_query,
         )
     except Exception as e:
         raise HTTPException(
@@ -94,9 +96,11 @@ def analyze(
     summary="Analyser un fichier uploadé directement",
 )
 async def analyze_upload(
-    file: UploadFile = File(...),
-    current_user: CurrentUserDep = Depends(get_current_user),
+    current_user: CurrentUserDep,
+    file:  UploadFile = File(...),
+    query: Optional[str] = Form(None),
 ):
+
     """
     Upload un fichier et lance le pipeline ARIA directement.
     Formats supportés : pdf, csv, xlsx, json, txt.
@@ -118,11 +122,13 @@ async def analyze_upload(
     }]
 
     try:
+        user_query = query.strip() if query and query.strip() else None
         result = run_aria(
             data_sources=sources,
             output_formats=["json", "markdown"],
             thread_id=str(current_user.id),
             stream=False,
+            user_query=user_query,   # ← ajouter
         )
     except Exception as e:
         os.unlink(tmp.name)

@@ -54,6 +54,7 @@ class ARIAState(TypedDict, total=False):
 
     # ── Data pipeline ────────────────────────────────────────────────
     data_sources:            list[DataSource]
+    user_query:              str | None  
     extracted_data:          list[dict]
     processed_data:          list[dict]
     consolidated_data:       dict

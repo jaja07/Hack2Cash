@@ -27,27 +27,23 @@ class DataSourceSchema(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    data_sources:   list[DataSourceSchema]
+    data_sources:   list[DataSourceSchema] = []
     output_formats: list[str] = ["json", "markdown"]
     thread_id:      str = "aria-default"
+    cra_text:       Optional[str] = None
+    query:          Optional[str] = None
+    domain:         Optional[str] = None
 
-    # Rétrocompatibilité — si cra_text est fourni on le traite comme fichier texte
-    cra_text:  Optional[str] = None
-    query:     Optional[str] = None
-    domain:    Optional[str] = None
+    @model_validator(mode="after")
+    def at_least_one_input(self) -> "AnalyzeRequest":
+        if not self.data_sources and not self.query and not self.cra_text:
+            raise ValueError("Provide at least one data_source, a query, or cra_text.")
+        return self
 
     class Config:
         json_schema_extra = {
             "example": {
-                "data_sources": [
-                    {
-                        "source_id":   "report-001",
-                        "source_type": "file",
-                        "path_or_url": "/uploads/report_q1.csv",
-                        "data_format": "csv",
-                        "metadata":    {},
-                    }
-                ],
+                "data_sources": [...],
                 "output_formats": ["json", "markdown"],
                 "thread_id": "session-abc123",
             }
