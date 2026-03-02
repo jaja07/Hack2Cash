@@ -4,10 +4,10 @@ const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8000";
 const MAX_RECONNECT_DELAY = 30000;
 
 export function useChat(conversationId) {
-  // 1. Déclaration des States (DOIVENT être en premier)
+  // 1. Déclaration des States
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState("disconnected");
-  const [agentStatuses, setAgentStatuses] = useState({}); // Pour piloter le graphe
+  const [agentStatuses, setAgentStatuses] = useState({}); 
   
   // 2. Déclaration des Refs
   const wsRef = useRef(null);
@@ -15,11 +15,10 @@ export function useChat(conversationId) {
   const intentionalClose = useRef(false);
 
   const connect = useCallback(() => {
-    const token = sessionStorage.getItem('cra_token'); // Récupération interne du token
+    const token = sessionStorage.getItem('cra_token'); 
     if (!conversationId || !token) return;
 
     setStatus("connecting");
-    // Utilisation du préfixe /api/ws pour correspondre au backend FastAPI
     const ws = new WebSocket(`${WS_URL}/api/ws/${conversationId}?token=${token}`);
     wsRef.current = ws;
 
@@ -35,18 +34,62 @@ export function useChat(conversationId) {
           setMessages(data.messages);
           setStatus("connected");
           break;
+
         case "message":
-          setMessages((prev) => [...prev, { role: "assistant", content: data.content }]);
+          const fullContent = data.content;
+          let currentText = "";
+          let charIndex = 0;
+
+          // 1. Initialise un message vide avec le flag de streaming actif
+          setMessages((prev) => [...prev, { role: "assistant", content: "", isStreaming: true }]);
+
+          // 2. Déclenche l'intervalle d'écriture progressive
+          const typingInterval = setInterval(() => {
+            // On avance par blocs de 15 caractères pour maintenir une vitesse de lecture confortable
+            charIndex += 100; 
+            currentText = fullContent.slice(0, charIndex);
+
+            setMessages((prev) => {
+              const updated = [...prev];
+              if (updated.length > 0) {
+                updated[updated.length - 1] = { 
+                  ...updated[updated.length - 1], 
+                  content: currentText 
+                };
+              }
+              return updated;
+            });
+
+            // 3. Arrêt une fois la totalité du texte affichée
+            if (charIndex >= fullContent.length) {
+              clearInterval(typingInterval);
+              setMessages((prev) => {
+                const finished = [...prev];
+                if (finished.length > 0) {
+                  finished[finished.length - 1].isStreaming = false; // Retire le curseur
+                }
+                return finished;
+              });
+            }
+          }, 30); // 30ms permet une animation fluide sans saccades
+
           setStatus("connected");
           break;
+
+        case "agent_step":
+          setAgentStatuses(prev => ({ 
+            ...prev, 
+            [data.node]: data.status 
+          }));
+          break;
+
         case "status":
-          if (data.agent) {
-            // Met à jour l'agent spécifique (ex: 'analysis') pour l'animation
-            setAgentStatuses(prev => ({ ...prev, [data.agent]: data.content }));
-          } else {
-            setStatus(data.content);
+          setStatus(data.content);
+          if (data.content === "agent_starting") {
+            setAgentStatuses({}); 
           }
           break;
+          
         case "error":
           console.error("Erreur WebSocket :", data.content);
           setStatus("connected");
@@ -67,11 +110,11 @@ export function useChat(conversationId) {
     };
 
     ws.onerror = () => setStatus("disconnected");
-  }, [conversationId]); // Seul conversationId est une dépendance
+  }, [conversationId]);
 
   useEffect(() => {
     setMessages([]);
-    setAgentStatuses({}); // Reset du graphe au changement de conversation
+    setAgentStatuses({}); 
     if (wsRef.current) {
       intentionalClose.current = true;
       wsRef.current.close(1000);

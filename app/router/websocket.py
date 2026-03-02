@@ -12,6 +12,7 @@ from service.chat_service import ChatService
 from database.models import User
 from agent import aria_graph  # On importe le graphe pour le streaming
 from langchain_core.messages import HumanMessage, AIMessage
+import asyncio
 
 import os
 import shutil
@@ -23,6 +24,14 @@ router = APIRouter(prefix="/ws", tags=["chats"])
 CurrentUserDep   = Annotated[User, Depends(get_current_user)]
 
 
+NODE_TO_FRONT_KEY = {
+    "domain_identifier": "supervisor",
+    "data_extractor":    "web_research",
+    "tool_builder_agent":"tool_builder",
+    "data_operator":     "tool_builder",
+    "triz_analyzer":     "analysis",
+    "report_generator":  "output"
+}
 
 # 1. On récupère le chemin absolu du fichier actuel (websocket.py)
 current_file_path = Path(__file__).resolve()
@@ -124,10 +133,13 @@ async def websocket_endpoint(
             try:
                 # 1. On informe le client que l'agent démarre
                 await websocket.send_json({"type": "status", "content": "agent_starting"})
+                await websocket.send_json({"type": "agent_step", "node": "supervisor", "status": "running"})
 
                 # 2. Recherche du fichier avec pathlib (propre et robuste)
                 # On utilise directement le UPLOAD_DIR défini en haut du fichier
                 matched_files = list(UPLOAD_DIR.glob(f"{conversation_id}_source.*"))
+                if not matched_files:
+                    print(f"⚠️ ATTENTION : Aucun fichier source trouvé pour la conversation {conversation_id}")
                 
                 sources = []
                 if matched_files:
@@ -147,6 +159,7 @@ async def websocket_endpoint(
                 from agent import run_aria 
                 
                 final_markdown_report = ""
+                last_node = None #
 
                 # On itère sur les étapes générées par le graphe ARIA
                 for update in run_aria(
@@ -159,30 +172,72 @@ async def websocket_endpoint(
                     if isinstance(update, dict):
                         for node_name, node_state in update.items():
                             if isinstance(node_state, dict):
-                                status = node_state.get("status", "")
+                                raw_status = node_state.get("status", "")
+                
+                                # Traduction du nom du nœud technique vers la clé attendue par le front
+                                front_key = NODE_TO_FRONT_KEY.get(node_name, node_name)
                                 
-                                # Envoi du statut en temps réel au client
-                                await websocket.send_json({
-                                    "type": "agent_step", 
-                                    "node": node_name,
-                                    "status": status
-                                })
+                                if "report_artifacts" in node_state:
+                                    artifacts = node_state.get("report_artifacts", {})
+                                    if artifacts and isinstance(artifacts, dict):
+                                        md = artifacts.get("markdown")
+                                        if md:
+                                            final_markdown_report = md
+
+                                # 2. FIX TOOL BUILDER : On ne l'allume que s'il y a un besoin réel
+                                if front_key == "tool_builder" and not node_state.get("needs_tool_builder", True):
+                                    continue
+
+
+                                # Si on change de node, on marque le précédent comme terminé
+                                if last_node and last_node != front_key:
+                                    await websocket.send_json({
+                                        "type": "agent_step",
+                                        "node": last_node,
+                                        "status": "completed"
+                                    })
+                                    await asyncio.sleep(0.05)
+                                
+
+                                # Mapping du statut pour React (completed si 'done', sinon running)
+                                frontend_status = "completed" if raw_status == "done" else "running"
+
+                                # ENVOI DE L'ÉTAPE : C'est ce message qui déclenche le halo et les billes bleues
+                                if front_key != "supervisor":
+                                    await websocket.send_json({
+                                        "type": "agent_step", 
+                                        "node": front_key,
+                                        "status": frontend_status
+                                    })
+
+                                if frontend_status == "running" and front_key != "supervisor":
+                                    last_node = front_key
+
 
                                 # CORRECTION ICI : on vérifie si le statut est "done"
-                                if node_name == "report_generator" and status == "done":
+                                if node_name == "report_generator" and raw_status == "done":
                                     artifacts = node_state.get("report_artifacts", {})
-                                    final_markdown_report = artifacts.get("markdown", "Aucun rapport généré.")
+                                    final_markdown_report = artifacts.get("markdown", "No report generated.")
+
+                # 1. On force l'état "Analyse" à terminé (au cas où il a été sauté)
+                await websocket.send_json({"type": "agent_step", "node": "analysis", "status": "completed"})
+
+                # 4. ACTIVATION OUTPUT (déclenche la bille bleue vers Output)
+                await websocket.send_json({"type": "agent_step", "node": "output", "status": "running"})
 
                 # 4. Fin de la boucle de stream : on traite la réponse finale
-                response_text = final_markdown_report if final_markdown_report else "L'agent n'a pas pu générer de réponse."
+                response_text = final_markdown_report if final_markdown_report else "The agent could not generate a response."
 
                 # Sauvegarde et envoi de la réponse de l'assistant
                 chat_service.save_message(conversation_id, response_text, "assistant")
-                await websocket.send_json({"type": "message", "content": response_text})
-                
-                # Remettre le graphe en état neutre
-                await websocket.send_json({"type": "status", "content": "idle"})
 
+                # 5. ENVOI DU MESSAGE (pendant que la bille circule encore)
+                await websocket.send_json({"type": "message", "content": response_text})
+
+              # On fige tout à la fin
+                await websocket.send_json({"type": "agent_step", "node": "output", "status": "completed"})
+                await websocket.send_json({"type": "agent_step", "node": "supervisor", "status": "completed"})
+                await websocket.send_json({"type": "status", "content": "connected"})
             except Exception as e:
                 error_trace = traceback.format_exc()
                 print(f"Erreur Agent: {error_trace}")

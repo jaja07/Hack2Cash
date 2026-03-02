@@ -3,7 +3,7 @@
  */
 
 const AGENTS = [
-  { key: 'supervisor',   label: 'Supervisor',     icon: '⚡', color: '#6366F1', x: 200, y: 180 },
+  { key: 'supervisor',   label: 'Analyzer',     icon: '⚡', color: '#6366F1', x: 200, y: 180 },
   { key: 'web_research', label: 'Web Research',   icon: '🌐', color: '#3B82F6', x: 200, y: 80  },
   { key: 'tool_builder', label: 'Tool Builder',   icon: '🔧', color: '#8B5CF6', x: 340, y: 180 },
   { key: 'analysis',     label: 'Analysis',       icon: '🧠', color: '#10B981', x: 200, y: 280 },
