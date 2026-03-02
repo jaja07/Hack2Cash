@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://hack2cashbackend-production-30f3.up.railway.app";
+const WS_URL = import.meta.env.VITE_WS_URL ?? "wss://hack2cashbackend-production-30f3.up.railway.app";
 const MAX_RECONNECT_DELAY = 30000;
 
 export function useChat(conversationId) {
