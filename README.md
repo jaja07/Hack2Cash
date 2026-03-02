@@ -1,83 +1,159 @@
-# Hack2Cash
+![ARIA Complete Graph](image.png)
 
-Backend API FastAPI avec PostgreSQL, SQLModel et migrations Alembic.
+# ARIA — Activity Report Intelligence Agent
 
-## Structure
+Activity reports contain valuable information. Extracting it, connecting the dots across sources, and turning raw data into decisions takes time most teams don't have. **ARIA was built to do exactly that.**
 
-- `app/` : code applicatif
-- `app/docker-compose.yml` : services Docker (PostgreSQL + backend)
-- `app/alembic/` : migrations
+ARIA is an AI agent specialized in activity report analysis. Its role is not to generate reports — it is to read them, understand them, and tell you what they mean. Submit your existing reports in any format (CSV, Excel, PDF, JSON, databases, APIs) and ARIA identifies the business domain, locates the relevant KPIs, cross-validates data across sources, and produces structured insights grounded in your actual data.
 
-## Prérequis
+## What sets ARIA apart
 
-- Python 3.11+
-- Docker + Docker Compose
-- (Optionnel) client PostgreSQL `psql`
+- **Domain-adaptive analysis**: HR, finance, R&D, logistics, IT — no manual KPI configuration needed.
+- **Self-extending extraction**: when a format is unsupported, ARIA can generate the missing extraction tool.
+- **Context enrichment**: when domain context is insufficient, ARIA enriches its own knowledge before analysis.
+- **TRIZ-driven reasoning**: identifies structural contradictions, root causes, and prioritized recommendations.
+- **Action-ready outputs**: recommendations include owner, timeline, and priority level.
+- **Multi-format export**: JSON, Markdown, HTML, PDF, and PowerPoint.
+- **Traceability-first**: no invented gaps, explicit confidence scores, and evidence grounded in source data.
 
-## Installation locale
+> ARIA does not write your reports. It finally makes them worth reading.
 
-Depuis le dossier `app/` :
+## Project architecture
 
-```bash
-pip install -r requirements.txt
-```
+This repository contains the full ARIA stack:
 
-## Variables d'environnement
+- `app/` → FastAPI backend, agent logic, tools, DB models, migrations, WebSocket support.
+- `cra-frontend/` → React + Vite frontend.
 
-Le fichier principal est `app/.env`.
+Main backend modules:
 
-Exemple :
+- `app/agent/` → orchestration graph, memory, sub-agents, tool layer.
+- `app/router/` and `app/service/` → API routes and business logic.
+- `app/database/` + `app/alembic/` → SQLModel models and migrations.
+
+## Tech stack
+
+- **Backend**: FastAPI, SQLModel, Alembic, PostgreSQL.
+- **AI/Orchestration**: LangGraph, LangChain, OpenAI-compatible providers, MCP tooling.
+- **Frontend**: React 19, Vite, Tailwind.
+- **Runtime**: Docker Compose (PostgreSQL + backend + frontend).
+
+## Prerequisites
+
+- Docker Desktop (with Compose)
+- (Optional for local non-Docker dev) Python 3.11+ and Node.js 20+
+
+## Configuration
+
+Primary environment file: `app/.env`
+
+Current Docker-compatible baseline:
 
 ```dotenv
-DB_HOST=localhost
+DB_HOST=db
+DB_PORT=5432
 DB_NAME=hack2cash_db
 DB_USER=admin
 DB_PASSWORD=adminpassword
-DATABASE_URL=postgresql://admin:adminpassword@localhost:5433/hack2cash_db
+DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+
+SECRET_KEY=<your_secret_key>
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=240
+NVIDIA_API_KEY=<your_nvidia_api_key>
 ```
 
-## Lancer avec Docker
-
-Depuis `app/` :
+Generate `SECRET_KEY` with OpenSSL:
 
 ```bash
-docker compose up --build
+openssl rand -hex 32
 ```
 
-La base PostgreSQL est exposée sur le port `5433`.
+### NVIDIA API key requirement
 
-## Migrations Alembic
+Using ARIA requires a valid NVIDIA API key to run model-powered analysis features. You must create and configure `NVIDIA_API_KEY` in `app/.env` before using the application. You can get your key from NVIDIA Build: https://build.nvidia.com/explore/discover
 
-Depuis `app/` :
+Important networking note:
+
+- Inside Docker network, backend must use `db:5432`.
+- From host machine, PostgreSQL is exposed on `localhost:5433` (because `5433:5432`).
+
+## Run the full application (Docker)
+
+From repository root:
+
+```bash
+docker compose -f app/docker-compose.yml up -d --build
+```
+
+Services:
+
+- Backend API: `http://localhost:8000`
+- Frontend: `http://localhost:5173`
+- PostgreSQL (host access): `localhost:5433`
+
+To stop:
+
+```bash
+docker compose -f app/docker-compose.yml down
+```
+
+## Backend local development (without Docker)
+
+From `app/`:
+
+```bash
+pip install -r requirements.txt
+fastapi dev main.py
+```
+
+## Frontend local development (without Docker)
+
+From `cra-frontend/`:
+
+```bash
+npm install
+npm run dev
+```
+
+## Database migrations (Alembic)
+
+From `app/`:
 
 ```bash
 alembic upgrade head
 ```
 
-Créer une migration :
+Create a migration:
 
 ```bash
-alembic revision --autogenerate -m "message"
+alembic revision --autogenerate -m "migration message"
 ```
 
-## Lancer l'API en développement
+## API docs
 
-Depuis `app/` :
+When backend is running:
 
-```bash
-fastapi dev main.py
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+## Troubleshooting
+
+### `Could not parse SQLAlchemy URL`
+
+Check `DATABASE_URL` format in `app/.env`.
+It must look like:
+
+```dotenv
+DATABASE_URL=postgresql://user:password@host:port/database
 ```
 
-## PostgreSQL en ligne de commande
+### `connection to server at "db", port 5433 failed`
 
-Connexion :
+`5433` is the host-mapped port, not the internal container port.
+For backend-to-db communication in Docker, use:
 
-```bash
-psql -h localhost -p 5433 -U admin -d hack2cash_db
-```
-
-Lister les tables :
-
-```sql
-\dt
+```dotenv
+DB_HOST=db
+DB_PORT=5432
 ```
