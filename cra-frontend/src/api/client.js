@@ -3,7 +3,7 @@
  * Centralised axios instance + typed API calls.
  */
 import axios from 'axios'
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL = import.meta.env.VITE_API_URL || 'https://hack2cashbackend-production-30f3.up.railway.app'
 
 const api = axios.create({
   baseURL: `${API_URL}/api/`,

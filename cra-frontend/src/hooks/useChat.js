@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8000";
+const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://hack2cashbackend-production-30f3.up.railway.app";
 const MAX_RECONNECT_DELAY = 30000;
 
 export function useChat(conversationId) {
@@ -46,7 +46,7 @@ export function useChat(conversationId) {
           // 2. Déclenche l'intervalle d'écriture progressive
           const typingInterval = setInterval(() => {
             // On avance par blocs de 15 caractères pour maintenir une vitesse de lecture confortable
-            charIndex += 100; 
+            charIndex += 40; 
             currentText = fullContent.slice(0, charIndex);
 
             setMessages((prev) => {
