@@ -1,16 +1,47 @@
-# React + Vite
+# ARIA Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend web application for ARIA (Activity Report Intelligence Agent), built with React + Vite.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- React 19
+- Vite
+- Tailwind CSS
+- Axios
 
-## React Compiler
+## Run locally
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+From this directory:
 
-## Expanding the ESLint configuration
+```bash
+npm install
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Default local URL:
+
+- `http://localhost:5173`
+
+## Build for production
+
+```bash
+npm run build
+npm run preview
+```
+
+## API configuration
+
+In Docker Compose, frontend uses:
+
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+If you run frontend outside Docker, ensure backend is reachable at the same URL, or update your environment accordingly.
+
+## Main folders
+
+- `src/components/` → UI components
+- `src/api/` → API client helpers
+- `src/context/` → React contexts (auth/state)
+- `src/hooks/` → reusable hooks
